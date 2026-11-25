@@ -37,18 +37,30 @@ const svg = select<SVGSVGElement, unknown>('#map')
 const { width, height } = svg.node()!.getBoundingClientRect()
 svg.attr('viewBox', `0 0 ${width} ${height}`)
 const path = geoPath(geoNaturalEarth1().fitSize([width, height], fc))
-const defs = svg.append('defs')
-for (const code of new Set(owner)) {
-  if (!flagUrl(code)) continue
-  defs.append('pattern').attr('id', `f-${code}`).attr('patternContentUnits', 'objectBoundingBox').attr('width', 1).attr('height', 1)
-    .append('image').attr('href', flagUrl(code)).attr('width', 1).attr('height', 1).attr('preserveAspectRatio', 'none')
+// Drapeau calé sur le plus grand polygone : sinon la France (Guyane, Réunion) n'affiche que la bande blanche.
+const mainBounds = (f: Feature) => {
+  const geo = f.geometry as any
+  const polys = geo.type === 'MultiPolygon' ? geo.coordinates.map((coordinates: any) => ({ type: 'Polygon', coordinates })) : [geo]
+  return path.bounds(polys.reduce((a: any, b: any) => (path.area(b) > path.area(a) ? b : a)))
 }
+const defs = svg.append('defs')
+const flagImages = defs.selectAll('pattern').data(territories).join('pattern')
+  .attr('id', (_, i) => `f-${i}`).attr('patternUnits', 'userSpaceOnUse')
+  .each(function (t) {
+    const [[x0, y0], [x1, y1]] = mainBounds(t.feature)
+    select(this).attr('x', x0).attr('y', y0).attr('width', x1 - x0).attr('height', y1 - y0)
+      .append('image').attr('width', x1 - x0).attr('height', y1 - y0).attr('preserveAspectRatio', 'none')
+  })
+  .select('image')
 const g = svg.append('g')
 const paths = g.selectAll('path').data(territories).join('path').attr('d', (t) => path(t.feature))
 paths.append('title').text((t) => t.name)
 svg.call(zoom<SVGSVGElement, unknown>().scaleExtent([1, 40]).on('zoom', (e) => g.attr('transform', e.transform)))
 
-const paint = () => paths.attr('fill', (_, i) => (flagUrl(owner[i]) ? `url(#f-${owner[i]})` : '#888'))
+const paint = () => {
+  flagImages.attr('href', (_, i) => flagUrl(owner[i]) ?? null)
+  paths.attr('fill', (_, i) => (flagUrl(owner[i]) ? `url(#f-${i})` : '#888'))
+}
 
 // Panneaux
 const $ = (id: string) => document.getElementById(id)!
