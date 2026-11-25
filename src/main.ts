@@ -97,7 +97,7 @@ const paint = () => {
     .attr('x', (d) => d[1][0]).attr('y', (d) => d[1][1]).attr('width', (d) => d[1][2] - d[1][0]).attr('height', (d) => d[1][3] - d[1][1])
     .select('image').attr('width', (d) => d[1][2] - d[1][0]).attr('height', (d) => d[1][3] - d[1][1])
   paths.attr('fill', (_, i) => (flagUrl(owner[i]) ? `url(#f-${owner[i]})` : '#888'))
-  borders.attr('d', path(mesh(world as any, (world as any).objects.countries, (a: object, b: object) => a === b || ownerOfGeom(a) !== ownerOfGeom(b))))
+  borders.attr('d', path(mesh(world as any, (world as any).objects.countries, (a: object, b: object) => (geomIdx.has(a) || geomIdx.has(b)) && (a === b || ownerOfGeom(a) !== ownerOfGeom(b)))))
 }
 
 // Panneaux
