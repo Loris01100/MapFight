@@ -64,11 +64,10 @@ function renderStats() {
 
 function renderCombat(c: Combat) {
   const won = c.attackerWins ? c.attacker : c.defender
-  const lostTerritory = territories[c.attackerWins ? c.to : c.from].name
   const li = document.createElement('li')
   li.innerHTML = `<b>T${turn}</b> ${label(c.attacker)} (${c.dir}) ⚔ ${label(c.defender)}<br>
     [${c.att}] (bonus ${c.bonus}) vs [${c.def}]${c.rerolls ? ` — ${c.rerolls} relance(s)` : ''}<br>
-    <span class="${c.attackerWins ? 'win' : 'lose'}">${nameOf[won]} prend le territoire ${lostTerritory}</span>`
+    <span class="${c.attackerWins ? 'win' : 'lose'}">${nameOf[won]} prend ${c.attackerWins ? `tous les territoires de ${nameOf[c.defender]}` : `le territoire ${territories[c.from].name}`}</span>`
   $('history').prepend(li)
   paths.classed('att', (_, i) => i === c.from).classed('def', (_, i) => i === c.to)
 }

@@ -66,7 +66,8 @@ export function playTurn(ts: Territory[], owner: string[], rng: Rng = Math.rando
     if (to === null) continue
     const defender = owner[to]
     const r = fight(rng)
-    if (r.attackerWins) owner[to] = attacker
+    // Une défense perdue = le défenseur perd tous ses territoires.
+    if (r.attackerWins) owner.forEach((o, i) => { if (o === defender) owner[i] = attacker })
     else owner[from] = defender
     return { ...r, attacker, defender, from, to, dir }
   }

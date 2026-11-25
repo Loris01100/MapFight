@@ -44,3 +44,12 @@ test('le perdant cède son territoire', () => {
   expect(c).toMatchObject({ attacker: 'a', defender: 'b', from: 0, to: 1, attackerWins: false })
   expect(owner).toEqual(['b', 'b'])
 })
+
+test('une défense perdue coûte tous les territoires', () => {
+  const ts = [square('a', 0, 0), square('b', 10, 0), square('b2', 50, 50)]
+  const owner = ['a', 'b', 'b']
+  // attaquant a, territoire 0, dir E ; att 6,6 bonus 1 vs def 1,1
+  const c = playTurn(ts, owner, dice(1, 1, 3, 6, 6, 1, 1, 1))!
+  expect(c).toMatchObject({ attacker: 'a', defender: 'b', attackerWins: true })
+  expect(owner).toEqual(['a', 'a', 'a'])
+})
