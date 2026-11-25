@@ -101,7 +101,7 @@ $('next').addEventListener('click', () => {
   const c = playTurn(territories, owner)
   if (!c) return void ($('status').textContent = 'Aucune cible trouvée, réessaie.')
   turn++
-  $('status').innerHTML = `Tour ${turn} : ${label(c.attacker)} tire <b>${c.dir}</b> → ${label(c.defender)}`
+  $('status').textContent = ''
   renderCombat(c)
   update()
 })
