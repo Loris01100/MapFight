@@ -13,6 +13,17 @@ import { playTurn, type Combat, type Territory } from './game'
 isoCountries.registerLocale(fr)
 const flags = import.meta.glob('/node_modules/flag-icons/flags/4x3/*.svg', { query: '?url', import: 'default', eager: true }) as Record<string, string>
 const flagUrl = (code: string) => flags[`/node_modules/flag-icons/flags/4x3/${code}.svg`]
+// Sur la carte, drapeaux convertis une fois en PNG : un SVG (jusqu'à 180 Ko pour la Serbie) est redessiné à chaque
+// échelle du zoom, une bitmap est juste étirée par le GPU (≈ 0-1 image perdue par zoom au lieu de ≈ 5).
+const pngs = new Map<string, string>()
+async function toPng(code: string) {
+  const img = new Image()
+  img.src = flagUrl(code)
+  await img.decode()
+  const c = Object.assign(document.createElement('canvas'), { width: 512, height: 384 })
+  c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height)
+  pngs.set(code, URL.createObjectURL(await new Promise<Blob>((r) => c.toBlob((b) => r(b!)))))
+}
 
 // États membres de l'ONU (Tuvalu absent de world-atlas) + Vatican, Palestine, Taïwan, Kosovo.
 const PLAYABLE = new Set('af al dz ad ao ag ar am au at az bs bh bd bb by be bz bj bt bo ba bw br bn bg bf bi cv kh cm ca cf td cl cn co km cg cr ci hr cu cy cz kp cd dk dj dm do ec eg sv gq er ee sz et fj fi fr ga gm ge de gh gr gd gt gn gw gy ht hn hu is in id ir iq ie il it jm jp jo kz ke ki kw kg la lv lb ls lr ly li lt lu mg mw my mv ml mt mh mr mu mx fm md mc mn me ma mz mm na nr np nl nz ni ne ng mk no om pk pw pa pg py pe ph pl pt qa kr ro ru rw kn lc vc ws sm st sa sn rs sc sl sg sk si sb so za ss es lk sd sr se ch sy tj th tl tg to tt tn tr tm tv ug ua ae gb tz us uy uz vu ve vn ye zm zw va ps tw xk'.split(' '))
@@ -105,7 +116,7 @@ const paint = () => {
   })
   // Copies du drapeau en mosaïque (comme un <pattern>), seulement là où un polygone du territoire passe.
   flagGroups.each(function (_, i) {
-    const [x, y, x1, y1] = box.get(owner[i])!, w = x1 - x, h = y1 - y, url = flagUrl(owner[i])
+    const [x, y, x1, y1] = box.get(owner[i])!, w = x1 - x, h = y1 - y, url = pngs.get(owner[i]) ?? flagUrl(owner[i])
     const tiles = new Map<string, number[]>()
     if (url) for (const [[a, b], [c, d]] of polyBounds[i])
       for (let tx = Math.floor((a - x) / w); tx <= Math.floor((c - x) / w); tx++)
@@ -217,3 +228,4 @@ next.addEventListener('click', async () => {
 })
 
 update()
+Promise.all(owner.filter(flagUrl).map(toPng)).then(paint)
