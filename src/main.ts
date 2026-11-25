@@ -46,19 +46,30 @@ const { width, height } = svg.node()!.getBoundingClientRect()
 svg.attr('viewBox', `0 0 ${width} ${height}`)
 const path = geoPath(geoNaturalEarth1().fitSize([width, height], fc))
 // Drapeau calé sur le plus grand polygone : sinon la France (Guyane, Réunion) n'affiche que la bande blanche.
-const mainBounds = (f: Feature) => {
+const polygons = (f: Feature): any[] => {
   const geo = f.geometry as any
-  const polys = geo.type === 'MultiPolygon' ? geo.coordinates.map((coordinates: any) => ({ type: 'Polygon', coordinates })) : [geo]
-  return path.bounds(polys.reduce((a: any, b: any) => (path.area(b) > path.area(a) ? b : a)))
+  return geo.type === 'MultiPolygon' ? geo.coordinates.map((coordinates: any) => ({ type: 'Polygon', coordinates })) : [geo]
 }
-const tBounds = territories.map((t) => mainBounds(t.feature))
+const tBounds = territories.map((t) => path.bounds(polygons(t.feature).reduce((a, b) => (path.area(b) > path.area(a) ? b : a))))
+// Boîte de chaque anneau tracé (sous-chemin « M… ») : sert à placer les copies du drapeau sur les îles et parties
+// hors de la boîte principale. Lu sur le tracé projeté, car un polygone coupé par l'antiméridien (Fidji) aurait sinon
+// une boîte de toute la largeur de la carte.
+const ringBounds = (d: string) => d.split('M').slice(1).map((s) => {
+  const n = s.match(/-?[\d.]+(?:e-?\d+)?/g)!.map(Number), xs = n.filter((_, j) => j % 2 === 0), ys = n.filter((_, j) => j % 2)
+  return [[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]]
+})
+const polyBounds = territories.map((t) => ringBounds(path(t.feature) ?? ''))
 // Géométrie topojson -> index de territoire, pour ne tracer que les frontières entre propriétaires différents.
 const geomIdx = new Map([...groups.values()].flatMap((gs, i) => gs.map((geo) => [geo, i] as const)))
 const ownerOfGeom = (geo: object) => { const i = geomIdx.get(geo); return i === undefined ? undefined : owner[i] }
 
 const defs = svg.append('defs')
 const g = svg.append('g')
-const paths = g.selectAll('path').data(territories).join('path').attr('d', (t) => path(t.feature))
+// Drapeaux en <image> découpées par le tracé du pays : un fill en <pattern> est re-rasterisé à chaque échelle
+// et fait perdre ~11 % des images pendant le zoom (~2 % ainsi). Les tracés, au-dessus, gardent titre et contour.
+const flagGroups = g.append('g').selectAll('g').data(territories).join('g').attr('clip-path', (_, i) => `url(#c${i})`)
+const paths = g.selectAll(':scope > path').data(territories).join('path').attr('id', (_, i) => `t${i}`).attr('d', (t) => path(t.feature))
+defs.selectAll('clipPath').data(territories).join('clipPath').attr('id', (_, i) => `c${i}`).append('use').attr('href', (_, i) => `#t${i}`)
 paths.append('title').text((t) => t.name)
 const borders = g.append('path').attr('class', 'borders')
 const zm = zoom<SVGSVGElement, unknown>().scaleExtent([1, 40]).on('zoom', (e) => g.attr('transform', e.transform))
@@ -92,14 +103,17 @@ const paint = () => {
     const b = box.get(o)
     box.set(o, b ? [Math.min(b[0], x0), Math.min(b[1], y0), Math.max(b[2], x1), Math.max(b[3], y1)] : [x0, y0, x1, y1])
   })
-  defs.selectAll('pattern').data([...box], (d: any) => d[0]).join((e) => {
-    const p = e.append('pattern').attr('id', (d) => `f-${d[0]}`).attr('patternUnits', 'userSpaceOnUse')
-    p.append('image').attr('preserveAspectRatio', 'xMidYMid slice').attr('href', (d) => flagUrl(d[0]) ?? null)
-    return p
+  // Copies du drapeau en mosaïque (comme un <pattern>), seulement là où un polygone du territoire passe.
+  flagGroups.each(function (_, i) {
+    const [x, y, x1, y1] = box.get(owner[i])!, w = x1 - x, h = y1 - y, url = flagUrl(owner[i])
+    const tiles = new Map<string, number[]>()
+    if (url) for (const [[a, b], [c, d]] of polyBounds[i])
+      for (let tx = Math.floor((a - x) / w); tx <= Math.floor((c - x) / w); tx++)
+        for (let ty = Math.floor((b - y) / h); ty <= Math.floor((d - y) / h); ty++) tiles.set(`${tx},${ty}`, [x + tx * w, y + ty * h])
+    select(this).selectAll('image').data([...tiles.values()]).join((e) => e.append('image').attr('preserveAspectRatio', 'xMidYMid slice'))
+      .attr('href', url ?? null).attr('x', (t) => t[0]).attr('y', (t) => t[1]).attr('width', w).attr('height', h)
   })
-    .attr('x', (d) => d[1][0]).attr('y', (d) => d[1][1]).attr('width', (d) => d[1][2] - d[1][0]).attr('height', (d) => d[1][3] - d[1][1])
-    .select('image').attr('width', (d) => d[1][2] - d[1][0]).attr('height', (d) => d[1][3] - d[1][1])
-  paths.attr('fill', (_, i) => (flagUrl(owner[i]) ? `url(#f-${owner[i]})` : '#888'))
+  paths.attr('fill', (_, i) => (flagUrl(owner[i]) ? 'transparent' : '#888'))
   borders.attr('d', path(mesh(world as any, (world as any).objects.countries, (a: object, b: object) => (geomIdx.has(a) || geomIdx.has(b)) && (a === b || ownerOfGeom(a) !== ownerOfGeom(b)))))
 }
 
