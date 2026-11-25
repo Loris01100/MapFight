@@ -1,0 +1,14 @@
+body { margin: 0; display: flex; height: 100vh; font: 14px system-ui, sans-serif; background: #1d2a3a; color: #eee; }
+#map { flex: 1; height: 100%; cursor: grab; }
+#map path { stroke: #111; stroke-width: 0.4; vector-effect: non-scaling-stroke; }
+#map path.att { stroke: #ff3b3b; stroke-width: 3; }
+#map path.def { stroke: #ffd83b; stroke-width: 3; }
+aside { width: 340px; padding: 12px; overflow-y: auto; background: #111a24; box-sizing: border-box; }
+h2 { font-size: 15px; margin: 16px 0 6px; }
+button { width: 100%; padding: 10px; font-size: 16px; cursor: pointer; }
+ol { margin: 0; padding-left: 24px; }
+li { margin: 3px 0; }
+img.flag { width: 20px; height: 15px; vertical-align: middle; margin-right: 4px; background: #666; }
+#history li { font-size: 12px; border-bottom: 1px solid #223; padding-bottom: 3px; }
+.win { color: #7f7; }
+.lose { color: #f77; }
