@@ -6,19 +6,26 @@
   <title>MapFight</title>
 </head>
 <body>
-  <svg id="map"></svg>
-  <aside>
+  <main>
+    <svg id="map"></svg>
+    <section id="stats">
+      <div id="left"><b id="alive"></b><span>PAYS RESTANTS</span></div>
+      <div id="topcard">
+        <header><h2>TOP 5 PAYS</h2><small>TERRITOIRES</small></header>
+        <ol id="top"></ol>
+      </div>
+    </section>
     <button id="next">Tour suivant</button>
     <p id="status"></p>
-    <h2>Top 5</h2>
-    <ol id="top"></ol>
     <details>
       <summary id="all-title">Liste complète</summary>
       <ol id="all"></ol>
     </details>
-    <h2>Historique</h2>
-    <ol id="history" reversed></ol>
-  </aside>
+    <details>
+      <summary>Historique</summary>
+      <ol id="history" reversed></ol>
+    </details>
+  </main>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

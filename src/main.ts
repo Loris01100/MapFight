@@ -49,7 +49,7 @@ const flagImages = defs.selectAll('pattern').data(territories).join('pattern')
   .each(function (t) {
     const [[x0, y0], [x1, y1]] = mainBounds(t.feature)
     select(this).attr('x', x0).attr('y', y0).attr('width', x1 - x0).attr('height', y1 - y0)
-      .append('image').attr('width', x1 - x0).attr('height', y1 - y0).attr('preserveAspectRatio', 'none')
+      .append('image').attr('width', x1 - x0).attr('height', y1 - y0).attr('preserveAspectRatio', 'xMidYMid slice')
   })
   .select('image')
 const g = svg.append('g')
@@ -71,7 +71,8 @@ function renderStats() {
   for (const o of owner) counts.set(o, (counts.get(o) ?? 0) + 1)
   const sorted = [...counts].sort((a, b) => b[1] - a[1] || nameOf[a[0]].localeCompare(nameOf[b[0]]))
   const li = ([c, n]: [string, number]) => `<li>${label(c)} — ${n}</li>`
-  $('top').innerHTML = sorted.slice(0, 5).map(li).join('')
+  $('top').innerHTML = sorted.slice(0, 5).map(([c, n]) => `<li>${flag(c)}${nameOf[c]}<span class="n">${n}</span></li>`).join('')
+  $('alive').textContent = String(sorted.length)
   $('all').innerHTML = sorted.map(li).join('')
   $('all-title').textContent = `Liste complète (${sorted.length} pays en vie)`
   return sorted.length
