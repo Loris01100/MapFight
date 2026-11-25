@@ -15,10 +15,13 @@ const flagUrl = (code: string) => flags[`/node_modules/flag-icons/flags/4x3/${co
 
 // Territoires sans code ISO dans world-atlas. Indian Ocean Ter. et Siachen Glacier ne sont pas des pays : ignorés.
 const NO_ISO: Record<string, string> = { Kosovo: 'xk', Somaliland: 'somaliland', 'N. Cyprus': 'n-cyprus' }
+// Îles Ashmore-et-Cartier : même code que l'Australie, ignorées pour qu'elle n'ait qu'un territoire.
+const SKIP = new Set(['Ashmore and Cartier Is.'])
 
 const fc = feature(world as any, (world as any).objects.countries) as unknown as FeatureCollection
 const territories: Territory[] = fc.features.flatMap((f: Feature) => {
   const geoName = f.properties!.name as string
+  if (SKIP.has(geoName)) return []
   const code = f.id ? isoCountries.numericToAlpha2(String(f.id))?.toLowerCase() : NO_ISO[geoName]
   if (!code) return []
   const name = isoCountries.getName(code, 'fr') ?? geoName
