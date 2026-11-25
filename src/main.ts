@@ -1,7 +1,7 @@
 import './style.css'
 import { geoBounds, geoCentroid, geoNaturalEarth1, geoPath } from 'd3-geo'
 import { select } from 'd3-selection'
-import { zoom } from 'd3-zoom'
+import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom'
 import { feature, merge, mesh } from 'topojson-client'
 import isoCountries from 'i18n-iso-countries'
 import fr from 'i18n-iso-countries/langs/fr.json'
@@ -60,7 +60,26 @@ const g = svg.append('g')
 const paths = g.selectAll('path').data(territories).join('path').attr('d', (t) => path(t.feature))
 paths.append('title').text((t) => t.name)
 const borders = g.append('path').attr('class', 'borders')
-svg.call(zoom<SVGSVGElement, unknown>().scaleExtent([1, 40]).on('zoom', (e) => g.attr('transform', e.transform)))
+const zm = zoom<SVGSVGElement, unknown>().scaleExtent([1, 40]).on('zoom', (e) => g.attr('transform', e.transform))
+svg.call(zm)
+
+// Vol de la vue actuelle vers la boîte [[x0,y0],[x1,y1]] (coordonnées carte).
+function flyTo([[x0, y0], [x1, y1]]: number[][], ms = 900) {
+  const k1 = Math.max(1, Math.min(8, 0.5 / Math.max((x1 - x0) / width, (y1 - y0) / height)))
+  const t0 = zoomTransform(svg.node()!)
+  const cx0 = (width / 2 - t0.x) / t0.k, cy0 = (height / 2 - t0.y) / t0.k
+  const cx1 = (x0 + x1) / 2, cy1 = (y0 + y1) / 2
+  const start = performance.now()
+  return new Promise<void>((done) => {
+    const step = (now: number) => {
+      const p = Math.min(1, (now - start) / ms), e = p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2
+      const k = t0.k * (k1 / t0.k) ** e, x = cx0 + (cx1 - cx0) * e, y = cy0 + (cy1 - cy0) * e
+      svg.call(zm.transform, zoomIdentity.translate(width / 2 - k * x, height / 2 - k * y).scale(k))
+      p < 1 ? requestAnimationFrame(step) : done()
+    }
+    requestAnimationFrame(step)
+  })
+}
 
 // Un seul drapeau par empire, étalé sur l'ensemble de ses territoires.
 const paint = () => {
@@ -117,13 +136,67 @@ function update() {
   }
 }
 
-$('next').addEventListener('click', () => {
-  const c = playTurn(territories, owner)
+// Dés
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const d6 = () => 1 + Math.floor(Math.random() * 6)
+const die = (v: number, cls = '') => Object.assign(document.createElement('span'), { className: `die ${cls}`, textContent: String(v) })
+
+async function roll(els: HTMLElement[], values: number[], ms = 700) {
+  for (const end = performance.now() + ms; performance.now() < end; await sleep(60)) els.forEach((el) => (el.textContent = String(d6())))
+  els.forEach((el, i) => (el.textContent = String(values[i])))
+}
+
+async function animateFight(c: Combat) {
+  const box = $('dice')
+  box.hidden = false
+  box.innerHTML = `<div class="side att">${label(c.attacker)}<span class="dice"></span></div>
+    <div class="side def">${label(c.defender)}<span class="dice"></span></div><p class="msg"></p>`
+  const [attRow, defRow] = [...box.querySelectorAll<HTMLElement>('.dice')]
+  const msg = (t: string) => (box.querySelector('.msg')!.innerHTML = t)
+  for (const [r, { att, def, bonus }] of c.rounds.entries()) {
+    msg(r ? `Égalité ! Relance n°${r}` : '')
+    // 1. Lancer simultané
+    const a = att.map(() => die(0)), d = def.map(() => die(0))
+    attRow.replaceChildren(...a); defRow.replaceChildren(...d)
+    await roll([...a, ...d], [...att, ...def])
+    // 2. Dé bonus de l'attaquant, remplace le plus faible s'il est meilleur
+    const low = att[0] < att[1] ? 0 : 1, b = die(0, 'bonus')
+    attRow.append(b)
+    await roll([b], [bonus], 500)
+    const fa = [...att]
+    if (bonus > att[low]) { a[low].classList.add('out'); fa[low] = bonus } else b.classList.add('out')
+    await sleep(600)
+    // 3. Duels dé à dé, triés
+    fa.sort((x, y) => y - x)
+    const fd = [...def].sort((x, y) => y - x)
+    const sa = fa.map((v) => die(v)), sd = fd.map((v) => die(v))
+    attRow.replaceChildren(...sa); defRow.replaceChildren(...sd)
+    for (let k = 0; k < 2; k++) {
+      await sleep(500)
+      if (fa[k] !== fd[k]) {
+        const [w, l] = fa[k] > fd[k] ? [sa[k], sd[k]] : [sd[k], sa[k]]
+        w.classList.add('win'); l.classList.add('lose')
+      } else sa[k].classList.add('lose'), sd[k].classList.add('lose')
+    }
+    await sleep(800)
+  }
+  const won = c.attackerWins ? c.attacker : c.defender
+  msg(`<span class="${c.attackerWins ? 'win' : 'lose'}">${label(won)} prend ${c.attackerWins ? `tous les territoires de ${nameOf[c.defender]}` : `le territoire ${territories[c.from].name}`}</span>`)
+}
+
+const next = $('next') as HTMLButtonElement
+next.addEventListener('click', async () => {
+  const c = playTurn(territories, owner) // owner muté, mais la carte n'est repeinte qu'après l'animation
   if (!c) return void ($('status').textContent = 'Aucune cible trouvée, réessaie.')
   turn++
+  next.disabled = true
   $('status').textContent = ''
   renderCombat(c)
-  update()
+  const [[ax0, ay0], [ax1, ay1]] = tBounds[c.from], [[bx0, by0], [bx1, by1]] = tBounds[c.to]
+  await flyTo([[Math.min(ax0, bx0), Math.min(ay0, by0)], [Math.max(ax1, bx1), Math.max(ay1, by1)]])
+  await animateFight(c)
+  next.disabled = false
+  update() // prise de territoire
 })
 
 update()

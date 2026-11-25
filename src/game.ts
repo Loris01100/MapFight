@@ -20,19 +20,22 @@ const DIR_KEYS = Object.keys(DIRS) as Dir[]
 const pick = <T>(arr: T[], rng: Rng) => arr[Math.floor(rng() * arr.length)]
 const d6 = (rng: Rng) => 1 + Math.floor(rng() * 6)
 
-export type Fight = { attackerWins: boolean; att: number[]; def: number[]; bonus: number; rerolls: number }
+export type Round = { att: number[]; def: number[]; bonus: number } // dés bruts, avant bonus et tri
+export type Fight = { attackerWins: boolean; att: number[]; def: number[]; bonus: number; rerolls: number; rounds: Round[] }
 
 // 2 dés chacun, dé bonus de l'attaquant remplace son plus faible s'il est meilleur.
 // Dés triés puis comparés deux à deux ; égalité au score => tout le monde relance.
 export function fight(rng: Rng): Fight {
+  const rounds: Round[] = []
   for (let rerolls = 0; ; rerolls++) {
     const att = [d6(rng), d6(rng)], def = [d6(rng), d6(rng)], bonus = d6(rng)
+    rounds.push({ att: [...att], def: [...def], bonus })
     const low = att[0] < att[1] ? 0 : 1
     if (bonus > att[low]) att[low] = bonus
     att.sort((a, b) => b - a)
     def.sort((a, b) => b - a)
     const score = Math.sign(att[0] - def[0]) + Math.sign(att[1] - def[1])
-    if (score !== 0) return { attackerWins: score > 0, att, def, bonus, rerolls }
+    if (score !== 0) return { attackerWins: score > 0, att, def, bonus, rerolls, rounds }
   }
 }
 

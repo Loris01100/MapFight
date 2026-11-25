@@ -15,7 +15,7 @@ test('bonus remplace le plus petit dé, comparaison dé par dé', () => {
 
 test('1 duel chacun => relance', () => {
   // 6,1 vs 5,2 (1-1) puis 3,3 vs 3,2 (égalité + victoire att)
-  expect(fight(dice(6, 1, 5, 2, 1, 3, 3, 3, 2, 1))).toMatchObject({ attackerWins: true, rerolls: 1 })
+  expect(fight(dice(6, 1, 5, 2, 1, 3, 3, 3, 2, 1))).toMatchObject({ attackerWins: true, rerolls: 1, rounds: [{ att: [6, 1], def: [5, 2], bonus: 1 }, { att: [3, 3], def: [3, 2], bonus: 1 }] })
 })
 
 const square = (code: string, x: number, y: number): Territory => {

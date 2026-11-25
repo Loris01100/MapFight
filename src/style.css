@@ -26,3 +26,15 @@ img.flag { width: 20px; height: 15px; vertical-align: middle; margin-right: 4px;
 #history li { font-size: 12px; border-bottom: 1px solid #223; padding-bottom: 3px; }
 .win { color: #7f7; }
 .lose { color: #f77; }
+#arena { position: relative; }
+#dice { position: absolute; left: 8px; right: 8px; bottom: 8px; background: rgba(15, 23, 36, .9); border: 1px solid #2f3e52; border-radius: 10px; padding: 6px 12px; pointer-events: none; }
+#dice[hidden] { display: none; }
+.side { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-weight: 700; }
+.side .dice { margin-left: auto; display: flex; gap: 6px; }
+.die { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 6px; font-size: 17px; font-weight: 800; color: #111; background: #ffd0d0; transition: transform .2s, opacity .2s, box-shadow .2s; }
+.def .die { background: #fff1b8; }
+.die.bonus { outline: 2px dashed #f5d36b; outline-offset: 1px; }
+.die.out { opacity: .25; text-decoration: line-through; }
+.die.win { box-shadow: 0 0 0 3px #7f7; transform: scale(1.15); }
+.die.lose { opacity: .35; }
+#dice .msg { margin: 2px 0 0; text-align: center; min-height: 1.2em; font-weight: 600; }
