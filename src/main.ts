@@ -2,6 +2,7 @@ import './style.css'
 import { geoBounds, geoCentroid, geoNaturalEarth1, geoPath } from 'd3-geo'
 import { select } from 'd3-selection'
 import { zoom, zoomIdentity, zoomTransform } from 'd3-zoom'
+import { interpolateZoom } from 'd3-interpolate'
 import { feature, merge, mesh } from 'topojson-client'
 import isoCountries from 'i18n-iso-countries'
 import fr from 'i18n-iso-countries/langs/fr.json'
@@ -67,13 +68,15 @@ svg.call(zm)
 function flyTo([[x0, y0], [x1, y1]]: number[][], ms = 900) {
   const k1 = Math.max(1, Math.min(zm.scaleExtent()[1], 0.5 / Math.max((x1 - x0) / width, (y1 - y0) / height)))
   const t0 = zoomTransform(svg.node()!)
-  const cx0 = (width / 2 - t0.x) / t0.k, cy0 = (height / 2 - t0.y) / t0.k
-  const cx1 = (x0 + x1) / 2, cy1 = (y0 + y1) / 2
-  const start = performance.now()
+  // Van Wijk : dézoome, se déplace puis rezoome, au lieu de traverser la carte à fort zoom.
+  const fly = interpolateZoom([(width / 2 - t0.x) / t0.k, (height / 2 - t0.y) / t0.k, width / t0.k], [(x0 + x1) / 2, (y0 + y1) / 2, width / k1])
+  ms = Math.min(Math.max(fly.duration, ms), 2 * ms) // vols lointains un peu plus longs
+  let start: number | undefined
   return new Promise<void>((done) => {
     const step = (now: number) => {
+      start ??= now // départ à la 1re image, sinon la 1re image (souvent lente) fait sauter l'animation
       const p = Math.min(1, (now - start) / ms), e = p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2
-      const k = t0.k * (k1 / t0.k) ** e, x = cx0 + (cx1 - cx0) * e, y = cy0 + (cy1 - cy0) * e
+      const [x, y, w] = fly(e), k = width / w
       svg.call(zm.transform, zoomIdentity.translate(width / 2 - k * x, height / 2 - k * y).scale(k))
       p < 1 ? requestAnimationFrame(step) : done()
     }
