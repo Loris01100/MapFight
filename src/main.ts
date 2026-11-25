@@ -65,7 +65,7 @@ svg.call(zm)
 
 // Vol de la vue actuelle vers la boîte [[x0,y0],[x1,y1]] (coordonnées carte).
 function flyTo([[x0, y0], [x1, y1]]: number[][], ms = 900) {
-  const k1 = Math.max(1, Math.min(8, 0.5 / Math.max((x1 - x0) / width, (y1 - y0) / height)))
+  const k1 = Math.max(1, Math.min(zm.scaleExtent()[1], 0.5 / Math.max((x1 - x0) / width, (y1 - y0) / height)))
   const t0 = zoomTransform(svg.node()!)
   const cx0 = (width / 2 - t0.x) / t0.k, cy0 = (height / 2 - t0.y) / t0.k
   const cx1 = (x0 + x1) / 2, cy1 = (y0 + y1) / 2
